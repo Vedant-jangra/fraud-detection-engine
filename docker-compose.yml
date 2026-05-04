@@ -34,6 +34,7 @@ services:
       POSTGRES_USER: postgres
     volumes:
       - tsdb_data:/var/lib/postgresql/data
+      - ./feature_store/migrations:/docker-entrypoint-initdb.d:ro
 
   prometheus:
     image: prom/prometheus:v2.51.0
@@ -68,8 +69,9 @@ services:
       - KAFKA_BOOTSTRAP=kafka:29092
       - JDBC_URL=jdbc:postgresql://timescaledb:5432/fraud_db
     volumes:
-      - /tmp/spark-checkpoints:/tmp/spark-checkpoints
+      - spark_checkpoints:/tmp/spark-checkpoints
 
 volumes:
   tsdb_data:
   grafana_data:
+  spark_checkpoints:
