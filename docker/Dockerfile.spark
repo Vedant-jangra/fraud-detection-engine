@@ -8,10 +8,4 @@ COPY processing/ ./processing/
 COPY data/ ./data/
 ENV PYTHONPATH=/app
 ENV PYSPARK_PYTHON=python3
-CMD ["/opt/spark/bin/spark-submit",
-     "--master", "local[*]",
-     "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3",
-     "--conf", "spark.sql.streaming.checkpointLocation=/tmp/spark-checkpoints",
-     "--conf", "spark.sql.shuffle.partitions=4",
-     "--conf", "spark.driver.memory=2g",
-     "processing/spark_streaming.py"]
+CMD ["/opt/spark/bin/spark-submit", "--master", "local[*]", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3", "--conf", "spark.sql.streaming.checkpointLocation=/tmp/spark-checkpoints", "--conf", "spark.sql.shuffle.partitions=4", "--conf", "spark.driver.memory=2g", "processing/spark_streaming.py"]

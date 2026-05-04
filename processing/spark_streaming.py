@@ -1,4 +1,6 @@
 import os
+from typing import Any
+
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField
@@ -31,7 +33,8 @@ TXN_SCHEMA = StructType(
 
 
 def create_spark_session() -> SparkSession:
-    return SparkSession.builder.appName("FraudFeatureEngine").getOrCreate()
+    builder: Any = SparkSession.builder
+    return builder.appName("FraudFeatureEngine").getOrCreate()
 
 
 def read_kafka_stream(spark: SparkSession):
