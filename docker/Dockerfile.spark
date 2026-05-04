@@ -1,0 +1,17 @@
+FROM apache/spark:3.5.1-python3
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-cache-dir --upgrade pip
+RUN pip3 install --no-cache-dir pyspark==3.5.1 confluent-kafka==2.4.0 psycopg2-binary==2.9.9 numpy==1.24.4 pandas==2.0.3 faker==25.2.0
+WORKDIR /app
+COPY processing/ ./processing/
+COPY data/ ./data/
+ENV PYTHONPATH=/app
+ENV PYSPARK_PYTHON=python3
+CMD ["/opt/spark/bin/spark-submit",
+     "--master", "local[*]",
+     "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3",
+     "--conf", "spark.sql.streaming.checkpointLocation=/tmp/spark-checkpoints",
+     "--conf", "spark.sql.shuffle.partitions=4",
+     "--conf", "spark.driver.memory=2g",
+     "processing/spark_streaming.py"]
