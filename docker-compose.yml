@@ -71,6 +71,19 @@ services:
     volumes:
       - spark_checkpoints:/tmp/spark-checkpoints
 
+  producer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.producer
+    container_name: fraud_producer
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP=kafka:29092
+      - KAFKA_TOPIC=transactions
+      - PRODUCER_TPS=500
+      - PRODUCER_DURATION_SECONDS=60
+
 volumes:
   tsdb_data:
   grafana_data:

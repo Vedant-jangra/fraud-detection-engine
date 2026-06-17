@@ -16,6 +16,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
+TOPIC_NAME = os.environ.get("KAFKA_TOPIC", "transactions")
+DEFAULT_TPS = int(os.environ.get("PRODUCER_TPS", "500"))
+DEFAULT_DURATION_SECONDS = int(os.environ.get("PRODUCER_DURATION_SECONDS", "60"))
 KAFKA_CONFIG = {
     "bootstrap.servers": KAFKA_BOOTSTRAP,
     "client.id": "fraud-producer",
@@ -26,8 +29,6 @@ KAFKA_CONFIG = {
     "retries": 3,
     "retry.backoff.ms": 100,
 }
-
-TOPIC_NAME = "transactions"
 
 
 def ensure_topic_exists(bootstrap_servers: str, topic: str, num_partitions: int = 3):
@@ -108,4 +109,4 @@ def stream_transactions(tps: int = 500, duration_seconds: int = 600):
 
 
 if __name__ == "__main__":
-    stream_transactions(tps=500, duration_seconds=60)
+    stream_transactions(tps=DEFAULT_TPS, duration_seconds=DEFAULT_DURATION_SECONDS)
