@@ -6,22 +6,25 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db_url = os.environ.get(
-        'DATABASE_URL',
-        'postgresql://postgres:fraud_engine_secret@localhost:5432/fraud_db'
+        "DATABASE_URL",
+        "postgresql://postgres:fraud_engine_secret@localhost:5432/fraud_db",
     )
     app.state.db_pool = await asyncpg.create_pool(
         dsn=db_url, min_size=5, max_size=20, command_timeout=5.0
     )
-    logger.info('Feature server ready')
+    logger.info("Feature server ready")
     yield
     await app.state.db_pool.close()
 
-app = FastAPI(title='Feature Store Server', version='1.0.0', lifespan=lifespan)
 
-@app.get('/features/velocity/{user_id}')
+app = FastAPI(title="Feature Store Server", version="1.0.0", lifespan=lifespan)
+
+
+@app.get("/features/velocity/{user_id}")
 async def get_velocity_features(user_id: str):
     query = """
         SELECT user_id, txn_count_10m, total_amount_10m,
@@ -36,15 +39,16 @@ async def get_velocity_features(user_id: str):
         row = await conn.fetchrow(query, user_id)
 
     if not row:
-        return {'user_id': user_id, 'found': False, 'features': {}}
+        return {"user_id": user_id, "found": False, "features": {}}
 
     return {
-        'user_id': user_id,
-        'found': True,
-        'features': dict(row),
+        "user_id": user_id,
+        "found": True,
+        "features": dict(row),
     }
 
-@app.get('/features/historical/{user_id}')
+
+@app.get("/features/historical/{user_id}")
 async def get_historical_baseline(user_id: str):
     query = """
         SELECT
@@ -70,14 +74,15 @@ async def get_historical_baseline(user_id: str):
         row = await conn.fetchrow(query, user_id)
 
     if not row:
-        return {'user_id': user_id, 'found': False, 'baseline': {}}
+        return {"user_id": user_id, "found": False, "baseline": {}}
 
     return {
-        'user_id': user_id,
-        'found': True,
-        'baseline': dict(row),
+        "user_id": user_id,
+        "found": True,
+        "baseline": dict(row),
     }
 
-@app.get('/health')
+
+@app.get("/health")
 async def health_check():
-    return {'status': 'ok'}
+    return {"status": "ok"}

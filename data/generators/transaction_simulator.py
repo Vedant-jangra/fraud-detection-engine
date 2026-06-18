@@ -1,10 +1,9 @@
-from faker import Faker
-from datetime import datetime, timezone
-import random
-import uuid
-
 import numpy as np
 import pandas as pd
+from faker import Faker
+from datetime import datetime, timezone
+import uuid
+import random
 
 fake = Faker("en_IN")
 rng = np.random.default_rng(seed=42)
@@ -52,7 +51,7 @@ def generate_transaction(user_id: str, is_fraud: bool = False) -> dict:
 def generate_dataset(
     n_transactions: int = 100_000, fraud_rate: float = 0.003
 ) -> pd.DataFrame:
-    user_pool = [fake.uuid4() for _ in range(10_000)]
+    user_pool = [str(fake.uuid4()) for _ in range(10_000)]
     fraud_count = int(n_transactions * fraud_rate)
     legit_count = n_transactions - fraud_count
     records = [

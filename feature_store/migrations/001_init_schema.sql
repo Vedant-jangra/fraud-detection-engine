@@ -1,8 +1,4 @@
--- 001_init_schema.sql
-
 CREATE EXTENSION IF NOT EXISTS timescaledb;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
 -- transactions table
 -- PRIMARY KEY is (transaction_id, timestamp) because TimescaleDB
 -- requires the partitioning column in the primary key
@@ -71,22 +67,12 @@ WITH (timescaledb.continuous) AS
     GROUP BY user_id, bucket
 WITH NO DATA;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM timescaledb_information.jobs
-        WHERE proc_name = 'policy_refresh_continuous_aggregate'
-          AND hypertable_name = 'user_hourly_stats'
-    ) THEN
-        PERFORM add_continuous_aggregate_policy(
-            'user_hourly_stats',
-            start_offset      => INTERVAL '2 hours',
-            end_offset        => INTERVAL '30 seconds',
-            schedule_interval => INTERVAL '30 seconds'
-        );
-    END IF;
-END $$;
+SELECT add_continuous_aggregate_policy(
+    'user_hourly_stats',
+    start_offset      => INTERVAL '2 hours',
+    end_offset        => INTERVAL '30 seconds',
+    schedule_interval => INTERVAL '30 seconds'
+);
 
 SELECT hypertable_name, num_chunks
 FROM timescaledb_information.hypertables;

@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 from processing.drift_detector import compute_psi
 
