@@ -84,6 +84,22 @@ services:
       - PRODUCER_TPS=500
       - PRODUCER_DURATION_SECONDS=60
 
+  inference:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.inference
+    container_name: fraud_inference
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+    environment:
+      - JDBC_URL=postgresql://postgres:fraud_engine_secret@timescaledb:5432/fraud_db
+      - ONNX_MODEL_PATH=/app/model/artifacts/model_quantized.onnx
+      - XGB_MODEL_PATH=/app/model/artifacts/xgb_model.pkl
+    volumes:
+      - ./model/artifacts:/app/model/artifacts
+
 volumes:
   tsdb_data:
   grafana_data:

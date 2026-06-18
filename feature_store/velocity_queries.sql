@@ -1,127 +1,88 @@
 -- velocity_queries.sql
--- Reusable investigation queries for high-velocity fraud patterns.
+-- Unified parameterized velocity feature query with 4 CTEs.
 
--- 1) Card testing detector:
--- Flags users making many small payments in a rolling 10-minute window.
-WITH small_payments AS (
-    SELECT
-        transaction_id,
-        user_id,
-        timestamp,
-        amount,
-        merchant_id,
-        merchant_cat,
-        device_id,
-        ip_address,
-        COUNT(*) OVER (
-            PARTITION BY user_id
-            ORDER BY timestamp
-            RANGE BETWEEN INTERVAL '10 minutes' PRECEDING AND CURRENT ROW
-        ) AS txn_count_10m,
-        SUM(amount) OVER (
-            PARTITION BY user_id
-            ORDER BY timestamp
-            RANGE BETWEEN INTERVAL '10 minutes' PRECEDING AND CURRENT ROW
-        ) AS total_amount_10m
-    FROM transactions
-    WHERE amount BETWEEN 1 AND 50
-)
-SELECT
-    transaction_id,
-    user_id,
-    timestamp,
-    amount,
-    merchant_id,
-    merchant_cat,
-    device_id,
-    ip_address,
-    txn_count_10m,
-    total_amount_10m,
-    'card_testing' AS suspected_pattern
-FROM small_payments
-WHERE txn_count_10m >= 20
-ORDER BY timestamp DESC;
+WITH
 
--- 2) Account takeover detector:
--- Flags users with high-value transactions from multiple countries/devices in one hour.
-WITH hourly_user_activity AS (
+recent_activity AS (
     SELECT
         user_id,
-        time_bucket('1 hour', timestamp) AS bucket,
-        COUNT(*) AS txn_count_1h,
-        SUM(amount) AS total_amount_1h,
-        MAX(amount) AS max_amount_1h,
-        COUNT(DISTINCT country) AS country_count_1h,
-        COUNT(DISTINCT device_id) AS device_count_1h,
-        COUNT(DISTINCT ip_address) AS ip_count_1h
+        COUNT(*)                          AS txn_count_10m,
+        SUM(amount)                       AS total_amount_10m,
+        AVG(amount)                       AS avg_amount_10m,
+        MAX(amount)                       AS max_amount_10m,
+        COUNT(DISTINCT merchant_id)       AS unique_merchants_10m,
+        COUNT(DISTINCT country)           AS unique_countries_10m,
+        COUNT(DISTINCT device_id)         AS unique_devices_10m
     FROM transactions
-    GROUP BY user_id, bucket
-)
-SELECT
-    user_id,
-    bucket,
-    txn_count_1h,
-    total_amount_1h,
-    max_amount_1h,
-    country_count_1h,
-    device_count_1h,
-    ip_count_1h,
-    'account_takeover' AS suspected_pattern
-FROM hourly_user_activity
-WHERE max_amount_1h >= 5000
-  AND (country_count_1h > 1 OR device_count_1h > 1 OR ip_count_1h > 2)
-ORDER BY bucket DESC;
-
--- 3) Bust-out detector:
--- Flags users whose latest hour is much larger than their historical hourly average.
-WITH hourly_amounts AS (
-    SELECT
-        user_id,
-        time_bucket('1 hour', timestamp) AS bucket,
-        SUM(amount) AS total_amount_1h,
-        COUNT(*) AS txn_count_1h
-    FROM transactions
-    GROUP BY user_id, bucket
+    WHERE
+        user_id = $1
+        AND timestamp >= NOW() - INTERVAL '10 minutes'
+    GROUP BY user_id
 ),
-hourly_baseline AS (
+
+historical_baseline AS (
     SELECT
         user_id,
-        bucket,
-        total_amount_1h,
-        txn_count_1h,
-        AVG(total_amount_1h) OVER (
-            PARTITION BY user_id
-            ORDER BY bucket
-            ROWS BETWEEN 24 PRECEDING AND 1 PRECEDING
-        ) AS avg_previous_hourly_amount
-    FROM hourly_amounts
-)
-SELECT
-    user_id,
-    bucket,
-    txn_count_1h,
-    total_amount_1h,
-    avg_previous_hourly_amount,
-    total_amount_1h / NULLIF(avg_previous_hourly_amount, 0) AS spike_ratio,
-    'bust_out' AS suspected_pattern
-FROM hourly_baseline
-WHERE avg_previous_hourly_amount IS NOT NULL
-  AND total_amount_1h >= 10000
-  AND total_amount_1h >= avg_previous_hourly_amount * 5
-ORDER BY bucket DESC;
+        AVG(daily_count)                  AS avg_daily_txn_count,
+        STDDEV(daily_count)               AS std_daily_txn_count,
+        AVG(daily_amount)                 AS avg_daily_amount,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY daily_amount)
+                                          AS p95_daily_amount
+    FROM (
+        SELECT
+            user_id,
+            DATE_TRUNC('day', timestamp)  AS day,
+            COUNT(*)                      AS daily_count,
+            SUM(amount)                   AS daily_amount
+        FROM transactions
+        WHERE
+            user_id = $1
+            AND timestamp BETWEEN NOW() - INTERVAL '30 days'
+                                AND NOW() - INTERVAL '1 hour'
+        GROUP BY user_id, day
+    ) daily_stats
+    GROUP BY user_id
+),
 
--- 4) Spark velocity feature inspection:
--- Reads features produced by processing/spark_streaming.py.
+window_velocity AS (
+    SELECT
+        user_id, timestamp, amount,
+        COUNT(*) OVER (
+            PARTITION BY user_id ORDER BY timestamp
+            RANGE BETWEEN INTERVAL '1 hour' PRECEDING AND CURRENT ROW
+        )                                    AS txn_count_1h,
+        COUNT(*) OVER (
+            PARTITION BY user_id ORDER BY timestamp
+            RANGE BETWEEN INTERVAL '24 hours' PRECEDING AND CURRENT ROW
+        )                                    AS txn_count_24h,
+        (amount - AVG(amount) OVER (PARTITION BY user_id)) /
+            NULLIF(STDDEV(amount) OVER (PARTITION BY user_id), 0)
+                                             AS amount_zscore,
+        timestamp - LAG(timestamp) OVER (
+            PARTITION BY user_id ORDER BY timestamp
+        )                                    AS time_since_last_txn
+    FROM transactions
+    WHERE user_id = $1 AND timestamp >= NOW() - INTERVAL '25 hours'
+),
+
+velocity_ratio AS (
+    SELECT
+        r.user_id,
+        r.txn_count_10m,  r.total_amount_10m,
+        r.unique_merchants_10m, r.unique_countries_10m,
+        h.avg_daily_txn_count,  h.avg_daily_amount,
+        CASE WHEN COALESCE(h.avg_daily_txn_count, 0) = 0 THEN NULL
+             ELSE (r.txn_count_10m * 144.0) / h.avg_daily_txn_count
+        END                                  AS velocity_ratio,
+        CASE WHEN COALESCE(h.avg_daily_amount, 0) = 0 THEN NULL
+             ELSE r.total_amount_10m / h.avg_daily_amount
+        END                                  AS amount_spike_ratio
+    FROM recent_activity r
+    LEFT JOIN historical_baseline h USING (user_id)
+)
+
 SELECT
-    user_id,
-    window_start,
-    window_end,
-    txn_count_10m,
-    total_amount_10m,
-    unique_merchants_10m,
-    unique_countries_10m
-FROM velocity_features
-WHERE txn_count_10m >= 20
-   OR total_amount_10m >= 50000
-   OR unique_countries_10m > 1
-ORDER BY window_start DESC;
+    vr.*,
+    (velocity_ratio > 10)::int             AS high_velocity_flag,
+    (amount_spike_ratio > 5)::int          AS amount_spike_flag
+FROM velocity_ratio vr;

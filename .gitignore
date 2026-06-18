@@ -15,3 +15,9 @@ htmlcov/
 
 *.log
 *.tmp
+
+model/artifacts/*.onnx
+model/artifacts/*.pkl
+reports/
+pdf_full_text.txt
+error.log

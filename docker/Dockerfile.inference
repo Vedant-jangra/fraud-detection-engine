@@ -1,0 +1,32 @@
+FROM python:3.12-slim AS builder
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install uvloop
+
+FROM python:3.12-slim AS runtime
+WORKDIR /app
+
+RUN useradd -m -u 1000 fraudapp && chown -R fraudapp:fraudapp /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl libpq5 && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /install /usr/local
+
+COPY --chown=fraudapp:fraudapp inference/ ./inference/
+COPY --chown=fraudapp:fraudapp model/ ./model/
+
+USER fraudapp
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+CMD ["uvicorn", "inference.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "4", \
+     "--loop", "uvloop", \
+     "--access-log"]

@@ -1,0 +1,53 @@
+name: Automated Model Retraining
+
+on:
+  workflow_dispatch:
+    inputs:
+      trigger_reason:
+        description: 'Why retraining was triggered'
+        required: true
+        default: 'data_drift_detected'
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - name: Train new model
+        run: PYTHONPATH=. python model/train.py
+
+      - name: Evaluate against baseline
+        run: |
+          PYTHONPATH=. python model/evaluate.py
+
+      - name: Check if new model is better
+        id: check_improvement
+        run: |
+          python -c "
+          import json
+          r = json.load(open('reports/retrain_comparison.json'))
+          ok = r['candidate_auprc'] >= r['baseline_auprc'] - 0.01
+          print(f'Candidate AUPRC: {r[\"candidate_auprc\"]:.4f}')
+          print(f'Baseline  AUPRC: {r[\"baseline_auprc\"]:.4f}')
+          exit(0 if ok else 1)
+          "
+
+      - name: Export to ONNX + quantize
+        if: steps.check_improvement.outcome == 'success'
+        run: PYTHONPATH=. python model/export_onnx.py
+
+      - name: Build and push new inference image
+        if: steps.check_improvement.outcome == 'success'
+        run: |
+          docker build -f docker/Dockerfile.inference \
+            -t fraud-engine:retrain-${{ github.run_id }} .

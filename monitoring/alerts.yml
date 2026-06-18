@@ -1,0 +1,28 @@
+groups:
+  - name: fraud_model_health
+    rules:
+      - alert: HighInferenceLatency
+        expr: histogram_quantile(0.99, inference_latency_ms_bucket) > 20
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'P99 inference latency > 20ms SLA'
+          description: 'Check feature store query performance and ONNX runtime.'
+
+      - alert: DataDriftDetected
+        expr: feature_psi > 0.2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Critical data drift detected in feature {{ $labels.feature_name }}'
+          description: 'PSI={{ $value }}. Trigger model retraining pipeline.'
+
+      - alert: FraudRateSpike
+        expr: rate(fraud_alerts_total[5m]) / rate(requests_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Fraud rate > 5% in last 5 minutes — possible attack in progress'
