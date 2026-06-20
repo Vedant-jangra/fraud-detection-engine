@@ -24,7 +24,8 @@ class ONNXPredictor:
             None, {self.input_name: features.vector.astype(np.float32)}
         )
         probabilities = result[1][0]
-        return float(probabilities.get(1, probabilities.get(1.0, 0.0)))
+        # ONNX returns a numpy array of [prob_legit, prob_fraud]
+        return float(probabilities[1])
 
 
 class FeatureExtractor:

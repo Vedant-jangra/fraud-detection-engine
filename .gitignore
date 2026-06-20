@@ -20,5 +20,6 @@ htmlcov/
 model/artifacts/*.onnx
 model/artifacts/*.pkl
 reports/
+data/ieee-cis/
 pdf_full_text.txt
 error.log

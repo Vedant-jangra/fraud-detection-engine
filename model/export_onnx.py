@@ -1,5 +1,5 @@
 import xgboost as xgb
-from skl2onnx import convert_sklearn
+from onnxmltools.convert import convert_xgboost
 from skl2onnx.common.data_types import FloatTensorType
 import onnxruntime as rt
 from onnxruntime.quantization import quantize_dynamic, QuantType
@@ -7,15 +7,32 @@ import numpy as np
 import time
 import joblib
 
-N_FEATURES = 16
-
+import onnx.helper
+original_make_attribute = onnx.helper.make_attribute
+def patched_make_attribute(key, value, doc_string=None):
+    if isinstance(value, list) and len(value) > 0 and isinstance(value[0], bool):
+        value = [int(v) for v in value]
+    elif isinstance(value, bool):
+        value = int(value)
+    return original_make_attribute(key, value, doc_string)
+onnx.helper.make_attribute = patched_make_attribute
 
 def export_to_onnx(model: xgb.XGBClassifier, output_path: str):
-    initial_type = [("float_input", FloatTensorType([None, N_FEATURES]))]
-    onnx_model = convert_sklearn(model, initial_types=initial_type, target_opset=18)
+    n_features = len(model.feature_names_in_)
+    model.get_booster().feature_names = [f"f{i}" for i in range(n_features)]
+    
+    initial_type = [("float_input", FloatTensorType([None, n_features]))]
+    onnx_model = convert_xgboost(model, initial_types=initial_type, target_opset=15)
+    
+    # Add ai.onnx domain missing from onnxmltools output
+    import onnx
+    opset = onnx_model.opset_import.add()
+    opset.domain = ""
+    opset.version = 15
+    
     with open(output_path, "wb") as f:
         f.write(onnx_model.SerializeToString())
-    print(f"Exported ONNX model to {output_path}")
+    print(f"Exported ONNX model to {output_path} (features: {n_features})")
     return output_path
 
 
@@ -28,10 +45,10 @@ def quantize_model(onnx_path: str, quantized_path: str):
     print(f"Quantized model saved to {quantized_path}")
 
 
-def benchmark_inference(onnx_path: str, n_runs: int = 1000):
+def benchmark_inference(onnx_path: str, n_features: int, n_runs: int = 1000):
     sess = rt.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
     input_name = sess.get_inputs()[0].name
-    dummy_input = np.random.randn(1, N_FEATURES).astype(np.float32)
+    dummy_input = np.random.randn(1, n_features).astype(np.float32)
 
     for _ in range(20):
         sess.run(None, {input_name: dummy_input})
@@ -52,13 +69,18 @@ def benchmark_inference(onnx_path: str, n_runs: int = 1000):
 
 
 if __name__ == "__main__":
-    model = joblib.load("model/artifacts/xgb_model.pkl")
+    import os
 
-    export_to_onnx(model, "model/artifacts/model.onnx")
-    quantize_model("model/artifacts/model.onnx", "model/artifacts/model_quantized.onnx")
+    # Export simulated model (for real-time API)
+    if os.path.exists("model/artifacts/xgb_model.pkl"):
+        print("=== Exporting Simulated Model (for API) ===")
+        model_sim = joblib.load("model/artifacts/xgb_model.pkl")
+        export_to_onnx(model_sim, "model/artifacts/model.onnx")
+        quantize_model("model/artifacts/model.onnx", "model/artifacts/model_quantized.onnx")
 
-    print("\n=== Original ONNX Benchmark ===")
-    benchmark_inference("model/artifacts/model.onnx")
-
-    print("\n=== Quantized ONNX Benchmark ===")
-    benchmark_inference("model/artifacts/model_quantized.onnx")
+    # Export IEEE-CIS model (offline validation)
+    if os.path.exists("model/artifacts/xgb_ieee_cis.pkl"):
+        print("\n=== Exporting IEEE-CIS Model ===")
+        model_ieee = joblib.load("model/artifacts/xgb_ieee_cis.pkl")
+        export_to_onnx(model_ieee, "model/artifacts/ieee_cis_model.onnx")
+        quantize_model("model/artifacts/ieee_cis_model.onnx", "model/artifacts/ieee_cis_model_quantized.onnx")

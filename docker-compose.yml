@@ -53,6 +53,43 @@ services:
     depends_on:
       - prometheus
 
+  inference_stable:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.inference
+    container_name: fraud_inference_stable
+    environment:
+      JDBC_URL: postgresql://postgres:fraud_engine_secret@timescaledb:5432/fraud_db
+      ONNX_MODEL_PATH: model/artifacts/model_quantized.onnx
+    depends_on:
+      - timescaledb
+    expose:
+      - "8000"
+
+  inference_canary:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.inference
+    container_name: fraud_inference_canary
+    environment:
+      JDBC_URL: postgresql://postgres:fraud_engine_secret@timescaledb:5432/fraud_db
+      ONNX_MODEL_PATH: model/artifacts/model_quantized.onnx
+    depends_on:
+      - timescaledb
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:latest
+    container_name: fraud_api_gateway
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      - inference_stable
+      - inference_canary
+
 volumes:
   tsdb_data:
   grafana_data:
