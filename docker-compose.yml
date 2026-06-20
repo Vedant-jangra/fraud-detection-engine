@@ -32,6 +32,20 @@ services:
     volumes:
       - tsdb_data:/var/lib/postgresql/data
 
+  fraud_dashboard:
+    image: fraud-intelligence-engine-dashboard:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: fraud_dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://fraud_api_gateway:8000
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: fraud_prometheus
