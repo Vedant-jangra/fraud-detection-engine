@@ -89,61 +89,7 @@ curl -X POST http://localhost:8000/v1/explain \
 | Docker Compose | v2 | Full-stack orchestration |
 | Prometheus + Grafana | 2.51 + 10.3 | Metrics, alerting, dashboards |
 
-## Project Structure
 
-```
-fraud-intelligence-engine/
-├── .github/workflows/
-│   ├── ci.yml                    # Lint + Test + Coverage on every PR
-│   └── cd.yml                    # Docker build, scan & push
-├── data/
-│   ├── generators/
-│   │   ├── transaction_simulator.py
-│   │   └── fraud_injector.py
-│   ├── loaders/
-│   │   └── ieee_cis_loader.py   # IEEE-CIS Kaggle dataset loader
-│   └── seeds/                    # Generated datasets
-├── ingestion/
-│   ├── kafka_producer.py         # Confluent Kafka producer (500 TPS)
-│   └── kafka_consumer.py         # Pluggable consumer with validation
-├── processing/
-│   ├── spark_streaming.py        # Kafka → velocity features → JDBC
-│   ├── feature_engineering.py    # Windowed aggregation (10m sliding)
-│   ├── event_quality.py          # JSON validation, required field checks
-│   └── drift_detector.py         # PSI-based data drift detection
-├── feature_store/
-│   ├── migrations/
-│   │   └── 001_init_schema.sql   # Hypertables, indexes, continuous aggs
-│   └── velocity_queries.sql      # Window function CTEs
-├── model/
-│   ├── train.py                  # XGBoost + SMOTE + StratifiedKFold
-│   ├── train_ieee_cis.py         # IEEE-CIS real data training pipeline
-│   ├── graph_features.py         # Bipartite card-device fraud graph
-│   ├── evaluate.py               # AUPRC comparison (candidate vs baseline)
-│   ├── export_onnx.py            # ONNX conversion + INT8 quantization
-│   └── artifacts/                # Saved models (.pkl, .onnx)
-├── inference/
-│   ├── main.py                   # FastAPI: /v1/score, /v1/explain, /metrics
-│   ├── schemas.py                # Pydantic request/response models
-│   ├── predictor.py              # ONNX Runtime + async feature retrieval
-│   └── explain.py                # SHAP top-N feature attribution
-├── monitoring/
-│   ├── prometheus.yml            # Scrape config + alertmanager
-│   ├── alerts.yml                # HighLatency, DataDrift, FraudSpike rules
-│   └── grafana/
-│       ├── dashboards/
-│       └── provisioning/
-├── docker/
-│   ├── Dockerfile.inference      # Multi-stage, non-root, HEALTHCHECK
-│   ├── Dockerfile.spark
-│   └── Dockerfile.producer
-├── tests/
-│   ├── unit/                     # 9 test files, 49 tests
-│   ├── integration/
-│   └── load/
-├── docker-compose.yml
-└── requirements.txt
-```
 
 ## Real Data: IEEE-CIS Fraud Detection
 
