@@ -25,6 +25,7 @@ scikit-learn==1.5.0
 imbalanced-learn==0.12.3
 shap==0.45.0
 onnxmltools==1.12.0
+onnx==1.16.1
 skl2onnx==1.17.0
 onnxruntime==1.18.0
 
@@ -33,6 +34,7 @@ prometheus-client==0.20.0
 
 # Graph
 networkx==3.3
+opendatasets==0.1.22
 
 # Dev tools
 pytest==8.2.0
