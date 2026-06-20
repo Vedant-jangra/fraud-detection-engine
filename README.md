@@ -8,26 +8,26 @@ A production-grade, real-time fraud detection system built with a Lambda-inspire
 
 ## System Architecture
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│   Producer   │────▶│    Kafka      │────▶│  Spark Streaming │────▶│   TimescaleDB    │
-│  (500 TPS)   │     │ (transactions)│     │  (10s batches)   │     │ (velocity feats) │
-└──────────────┘     └──────┬───────┘     └──────────────────┘     └────────┬─────────┘
-                            │                                               │
-                            │                                               │
-                            ▼                                               ▼
-                     ┌──────────────┐                              ┌──────────────────┐
-                     │   FastAPI     │◀─────── async query ───────│  Feature Store    │
-                     │  /v1/score    │         (< 8ms)             │  (velocity SQL)   │
-                     │  /v1/explain  │                             └──────────────────┘
-                     │  (ONNX, <20ms)│
-                     └──────┬───────┘
-                            │
-                            ▼
-                     ┌──────────────┐     ┌──────────────────┐
-                     │  Prometheus   │────▶│     Grafana       │
-                     │  (metrics)    │     │  (dashboards)     │
-                     └──────────────┘     └──────────────────┘
+```mermaid
+flowchart TD
+    subgraph Ingestion
+        P[Producer<br>500 TPS] --> K[Apache Kafka<br>Transactions]
+    end
+    
+    subgraph Processing
+        K --> S[PySpark Streaming<br>10s batches]
+        S --> T[(TimescaleDB<br>Feature Store)]
+    end
+    
+    subgraph Inference
+        F{{FastAPI Inference<br>/v1/score<br>ONNX <20ms}}
+        T -. async query<br>< 8ms .-> F
+    end
+    
+    subgraph Monitoring
+        F --> M[Prometheus<br>Metrics]
+        M --> G[Grafana<br>Dashboards]
+    end
 ```
 
 | Layer | Technology | Responsibility | Target SLA |
@@ -151,22 +151,19 @@ The model is validated against the [IEEE-CIS Fraud Detection](https://www.kaggle
 
 ### Data Pipeline
 
-```
-train_transaction.csv (590K rows)  ──┐
-                                      ├── merge on TransactionID ── reduce_memory() ── drop_high_null_cols()
-train_identity.csv (145K rows)    ──┘                                  │
-                                                                       ▼
-                                                              check_leakage()
-                                                                       │
-                                                    ┌──────────────────┼──────────────────┐
-                                                    ▼                  ▼                  ▼
-                                           engineer_card       engineer_time       clean_device
-                                           _features()        _features()          _info()
-                                                    │                  │                  │
-                                                    └──────────────────┼──────────────────┘
-                                                                       ▼
-                                                              XGBoost Training
-                                                          (100+ curated features)
+```mermaid
+flowchart TD
+    T[train_transaction.csv<br>590K rows] --> M(merge on TransactionID)
+    I[train_identity.csv<br>145K rows] --> M
+    M --> R(reduce_memory)
+    R --> D(drop_high_null_cols)
+    D --> C(check_leakage)
+    C --> F1(engineer_card_features)
+    C --> F2(engineer_time_features)
+    C --> F3(clean_device_info)
+    F1 --> XGB[XGBoost Training<br>100+ curated features]
+    F2 --> XGB
+    F3 --> XGB
 ```
 
 ### Key Engineering Decisions
@@ -197,13 +194,26 @@ PYTHONPATH=. python model/export_onnx.py
 
 A **bipartite card ↔ device graph** built with NetworkX identifies fraud patterns invisible to tabular models:
 
-```
-Card Nodes                Device Nodes
-  card_1000 ─────┐
-  card_1001 ─────┼──── device_ring    ← 4 cards on 1 device = card testing ring
-  card_1002 ─────┤
-  card_1003 ─────┘
-  card_2000 ────────── device_clean   ← 1 card, 1 device = normal
+```mermaid
+graph LR
+    subgraph Card Nodes
+        C1[card_1000]
+        C2[card_1001]
+        C3[card_1002]
+        C4[card_1003]
+        C5[card_2000]
+    end
+    
+    subgraph Device Nodes
+        D1((device_ring<br>Card Testing Ring))
+        D2((device_clean<br>Normal Device))
+    end
+    
+    C1 --- D1
+    C2 --- D1
+    C3 --- D1
+    C4 --- D1
+    C5 --- D2
 ```
 
 ### Graph Features
