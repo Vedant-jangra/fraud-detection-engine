@@ -104,7 +104,9 @@ def train_ieee_cis_xgboost(
     return best_model
 
 
-def print_feature_importance(model: xgb.XGBClassifier, feature_cols: list[str], top_n: int = 20):
+def print_feature_importance(
+    model: xgb.XGBClassifier, feature_cols: list[str], top_n: int = 20
+):
     """Print top-N features by gain importance."""
     importance = model.get_booster().get_score(importance_type="gain")
     # Map feature indices to names

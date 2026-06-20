@@ -60,7 +60,9 @@ def reduce_memory(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].astype(np.int32)
 
     end_mem = df.memory_usage(deep=True).sum() / 1024**2
-    print(f"Memory: {start_mem:.1f}MB -> {end_mem:.1f}MB ({100 * (1 - end_mem / start_mem):.1f}% reduction)")
+    print(
+        f"Memory: {start_mem:.1f}MB -> {end_mem:.1f}MB ({100 * (1 - end_mem / start_mem):.1f}% reduction)"
+    )
     return df
 
 
@@ -339,7 +341,9 @@ def prepare_ieee_cis(data_dir: str = "data/ieee-cis") -> tuple[pd.DataFrame, lis
     available_features = [c for c in IEEE_CIS_FEATURE_COLS if c in df.columns]
     missing = set(IEEE_CIS_FEATURE_COLS) - set(available_features)
     if missing:
-        print(f"  Note: {len(missing)} expected features not in dataset (will use {len(available_features)})")
+        print(
+            f"  Note: {len(missing)} expected features not in dataset (will use {len(available_features)})"
+        )
 
     print(f"\nFinal shape: {df.shape}")
     print(f"Features: {len(available_features)}")

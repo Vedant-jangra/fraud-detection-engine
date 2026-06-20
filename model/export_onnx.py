@@ -8,28 +8,33 @@ import time
 import joblib
 
 import onnx.helper
+
 original_make_attribute = onnx.helper.make_attribute
+
+
 def patched_make_attribute(key, value, doc_string=None):
     if isinstance(value, list) and len(value) > 0 and isinstance(value[0], bool):
         value = [int(v) for v in value]
     elif isinstance(value, bool):
         value = int(value)
     return original_make_attribute(key, value, doc_string)
+
+
 onnx.helper.make_attribute = patched_make_attribute
+
 
 def export_to_onnx(model: xgb.XGBClassifier, output_path: str):
     n_features = len(model.feature_names_in_)
     model.get_booster().feature_names = [f"f{i}" for i in range(n_features)]
-    
+
     initial_type = [("float_input", FloatTensorType([None, n_features]))]
     onnx_model = convert_xgboost(model, initial_types=initial_type, target_opset=15)
-    
+
     # Add ai.onnx domain missing from onnxmltools output
-    import onnx
     opset = onnx_model.opset_import.add()
     opset.domain = ""
     opset.version = 15
-    
+
     with open(output_path, "wb") as f:
         f.write(onnx_model.SerializeToString())
     print(f"Exported ONNX model to {output_path} (features: {n_features})")
@@ -76,11 +81,16 @@ if __name__ == "__main__":
         print("=== Exporting Simulated Model (for API) ===")
         model_sim = joblib.load("model/artifacts/xgb_model.pkl")
         export_to_onnx(model_sim, "model/artifacts/model.onnx")
-        quantize_model("model/artifacts/model.onnx", "model/artifacts/model_quantized.onnx")
+        quantize_model(
+            "model/artifacts/model.onnx", "model/artifacts/model_quantized.onnx"
+        )
 
     # Export IEEE-CIS model (offline validation)
     if os.path.exists("model/artifacts/xgb_ieee_cis.pkl"):
         print("\n=== Exporting IEEE-CIS Model ===")
         model_ieee = joblib.load("model/artifacts/xgb_ieee_cis.pkl")
         export_to_onnx(model_ieee, "model/artifacts/ieee_cis_model.onnx")
-        quantize_model("model/artifacts/ieee_cis_model.onnx", "model/artifacts/ieee_cis_model_quantized.onnx")
+        quantize_model(
+            "model/artifacts/ieee_cis_model.onnx",
+            "model/artifacts/ieee_cis_model_quantized.onnx",
+        )

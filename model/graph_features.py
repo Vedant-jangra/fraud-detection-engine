@@ -69,8 +69,15 @@ def build_fraud_graph(
         )
 
     card_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("node_type") == "card")
-    device_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("node_type") == "device")
-    logger.info("Graph: %d card nodes, %d device nodes, %d edges", card_nodes, device_nodes, G.number_of_edges())
+    device_nodes = sum(
+        1 for _, d in G.nodes(data=True) if d.get("node_type") == "device"
+    )
+    logger.info(
+        "Graph: %d card nodes, %d device nodes, %d edges",
+        card_nodes,
+        device_nodes,
+        G.number_of_edges(),
+    )
 
     return G
 
@@ -119,9 +126,7 @@ def extract_graph_features(
         if device_node and device_node in G and G.degree(device_node) > 0:
             neighbors = list(G.neighbors(device_node))
             fraud_edges = sum(
-                1
-                for n in neighbors
-                if G[device_node][n].get("is_fraud", 0) == 1
+                1 for n in neighbors if G[device_node][n].get("is_fraud", 0) == 1
             )
             fraud_rate = fraud_edges / len(neighbors)
         else:
@@ -176,7 +181,9 @@ def add_graph_features(
     # Extract features (can be slow for >100K rows due to iterrows)
     if sample_size and len(df) > sample_size:
         print(f"Extracting graph features for sample of {sample_size:,} rows...")
-        print("(Set sample_size=None for full extraction — takes ~10 min for 590K rows)")
+        print(
+            "(Set sample_size=None for full extraction — takes ~10 min for 590K rows)"
+        )
 
         # Stratified sample to preserve fraud rate
         fraud_df = df[df["isFraud"] == 1]
@@ -184,19 +191,25 @@ def add_graph_features(
         fraud_n = min(len(fraud_df), int(sample_size * df["isFraud"].mean()))
         legit_n = sample_size - fraud_n
 
-        sample_df = pd.concat([
-            fraud_df.sample(n=fraud_n, random_state=42),
-            legit_df.sample(n=legit_n, random_state=42),
-        ]).sort_index()
+        sample_df = pd.concat(
+            [
+                fraud_df.sample(n=fraud_n, random_state=42),
+                legit_df.sample(n=legit_n, random_state=42),
+            ]
+        ).sort_index()
 
-        graph_feats = extract_graph_features(sample_df, G, card_col=card_col, device_col=device_col)
+        graph_feats = extract_graph_features(
+            sample_df, G, card_col=card_col, device_col=device_col
+        )
 
         # For rows not in sample, fill with 0
         full_graph_feats = pd.DataFrame(0, index=df.index, columns=GRAPH_FEATURE_COLS)
         full_graph_feats.loc[graph_feats.index] = graph_feats
     else:
         print(f"Extracting graph features for all {len(df):,} rows...")
-        full_graph_feats = extract_graph_features(df, G, card_col=card_col, device_col=device_col)
+        full_graph_feats = extract_graph_features(
+            df, G, card_col=card_col, device_col=device_col
+        )
 
     df_out = pd.concat([df, full_graph_feats], axis=1)
     print(f"Added {len(GRAPH_FEATURE_COLS)} graph features")
