@@ -45,7 +45,6 @@ PHASE 3 — The Brain (Weeks 7–9)
 ■ Mastery Challenge #3
 PHASE 4 — The Production Wall (Weeks 10–12)
 ■ Docker Compose Full-Stack Deployment
-■ CI/CD with GitHub Actions
 ■ Prometheus Metrics & Grafana Dashboards
 ■ Data Drift Detection & Automated Alerts
 ■ Interview Preparation & Portfolio Strategy
@@ -1002,7 +1001,6 @@ Real-Time High-Frequency Fraud & Financial Intelligence Engine    12-Week Maste
 Page 23
 PHASE 4
 THE PRODUCTION WALL
-Weeks 10–12    Docker · CI/CD · Monitoring · Drift Detection
 ■  WEEK 10  —  Docker Production Deployment
 4.1 Multi-Stage Docker Build for Inference Service
 Multi-stage builds are the production standard. Stage 1 (builder) compiles dependencies in a full
@@ -1038,15 +1036,11 @@ CMD ["uvicorn", "inference.main:app",
      "--workers", "4",        # Match CPU cores
      "--loop", "uvloop",      # ~20% faster than asyncio default
      "--access-log"]
-■  WEEK 11  —  CI/CD & GitHub Actions
-4.2 CI/CD Pipeline with GitHub Actions
 Every commit should trigger automated quality gates. A ■30 LPA role expects you to understand
-what CI/CD means in practice — not just theory. Here is a production-grade pipeline with three
 stages: lint/test, build, deploy.
 
 Real-Time High-Frequency Fraud & Financial Intelligence Engine    12-Week Mastery Roadmap
 Page 24
-GitHub Actions CI Pipeline — Quality Gate & Integration Test:
 YAML
 # .github/workflows/ci.yml
 name: CI — Lint, Test & Build
@@ -1094,7 +1088,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run integration tests
         run: pytest tests/integration/ -v --timeout=60
-GitHub Actions CD Pipeline — Build, Scan & Push:
 
 Real-Time High-Frequency Fraud & Financial Intelligence Engine    12-Week Mastery Roadmap
 Page 25
@@ -1280,7 +1273,6 @@ fraud data with < 1M rows, XGBoost wins.
 Q: 'How do you handle model degradation in production?'
 Describe your PSI-based drift detection: Spark computes PSI every 30 minutes against training
 distribution statistics. Prometheus gauge exceeds 0.2 threshold, Grafana alert fires, triggers
-automated retraining GitHub Actions workflow.
 Q: 'What is a Window Function and when would you use one?'
 A window function performs calculations across a set of rows related to the current row, without
 collapsing them like GROUP BY. In fraud detection, I use RANGE BETWEEN INTERVAL '10
@@ -1343,7 +1335,6 @@ Dashboard creation, alerting, provisioning
 Docker Compose
 docs.docker.com/compose
 Multi-container apps, networking, volumes
-GitHub Actions
 docs.github.com/en/actions
 Workflow syntax, caching, secrets management
 scikit-learn
@@ -1453,7 +1444,6 @@ Multi-stage Docker images, docker-compose
 Container best practices, security
 11
 4 — Production
-GitHub Actions CI/CD pipeline passing
 DevOps, automated testing, IaC
 12
 4 — Production
@@ -1812,7 +1802,6 @@ Rollback
 A/B fails or error spike
 Revert to previous model automatically
 Rollback < 60 seconds
-GitHub Actions Retraining Workflow:
 
 Real-Time High-Frequency Fraud & Financial Intelligence Engine    12-Week Mastery Roadmap
 Page 41
@@ -2098,7 +2087,6 @@ GitHub profile. Make every second count.
 ■ Git Hygiene
 ✓ Meaningful commit messages: 'feat: add SHAP /v1/explain endpoint' not 'update code'
 ✓ Feature branches merged via PRs (shows professional workflow even solo)
-✓ GitHub Actions CI badge showing green on main branch
 ✓ model/artifacts/*.onnx added to .gitignore (never commit large binary files)
 ■ Demo Video (3 minutes, Loom)
 ✓ Show docker-compose up bringing the full stack live from scratch

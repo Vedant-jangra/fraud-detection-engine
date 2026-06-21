@@ -1,6 +1,5 @@
 # Real-Time High-Frequency Fraud & Financial Intelligence Engine
 
-[![CI Pipeline](https://img.shields.io/badge/CI-Passing-brightgreen?style=flat-square&logo=github-actions)](https://github.com/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -237,7 +236,7 @@ We monitor data drift using the PSI metric, rooted in Kullback-Leibler (KL) dive
 
 $$\text{PSI} = \sum_{i} \left( \% \text{Actual}_i - \% \text{Expected}_i \right) \times \ln\left( \frac{\% \text{Actual}_i}{\% \text{Expected}_i} \right)$$
 
-By calculating this on our high-cardinality velocity features every 30 minutes, we mathematically prove to the CI/CD pipeline if the data distribution has shifted enough to trigger an automated retraining loop via GitHub Actions.
+By calculating this on our high-cardinality velocity features every 30 minutes, we mathematically prove if the data distribution has shifted enough to trigger an automated retraining loop.
 
 ## Model Explainability & Compliance
 
