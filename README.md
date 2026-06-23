@@ -276,12 +276,10 @@ PSI (Population Stability Index) is computed every 30 minutes against training d
 Prometheus alert rules fire automatically when PSI exceeds 0.2, P99 latency exceeds 20ms, or fraud rate spikes above 5%.
 
 ### Grafana Dashboard
-*(Placeholder: Insert screenshot of your local Grafana dashboard showing the TPS, Latency, and PSI drift panels here)*
-`![Grafana Dashboard](docs/assets/grafana_dashboard.png)`
+![Grafana Dashboard](docs/assets/grafana_dashboard.png)
 
 ### Locust P99 Latency Benchmark
-*(Placeholder: Insert screenshot of the Locust web UI showing sub-20ms P99 latency at 10k TPS here)*
-`![Locust Benchmark](docs/assets/locust_benchmark.png)`
+![Locust Benchmark](docs/assets/locust_benchmark.png)
 
 ## Running Tests
 
