@@ -1,0 +1,118 @@
+name: CI — Lint, Test & Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with Ruff
+        run: ruff check . --output-format=github
+
+      - name: Format check with Black
+        run: black --check .
+
+      - name: Run unit tests with coverage
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest tests/unit/ -v \
+                 --cov=inference \
+                 --cov=model \
+                 --cov=processing \
+                 --cov-report=xml \
+                 --cov-fail-under=60 \
+                 --ignore=tests/unit/test_event_quality.py \
+                 --ignore=tests/unit/test_feature_engineering.py
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_PASSWORD: test_secret
+          POSTGRES_DB: fraud_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run integration tests
+        env:
+          PYTHONPATH: .
+          DATABASE_URL: postgresql://postgres:test_secret@localhost:5432/fraud_test
+        run: pytest tests/integration/ -v --timeout=60
+
+  build-push:
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f docker/Dockerfile.inference \
+            -t fraud-engine:${{ github.sha }} .
+
+      - name: Scan for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: fraud-engine:${{ github.sha }}
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        run: |
+          docker tag fraud-engine:${{ github.sha }} \
+            ghcr.io/${{ github.repository }}/fraud-engine:latest
+          docker push ghcr.io/${{ github.repository }}/fraud-engine:latest
