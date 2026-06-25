@@ -53,6 +53,7 @@ services:
       - '9090:9090'
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
 
   grafana:
     image: grafana/grafana:10.3.3

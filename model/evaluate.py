@@ -7,6 +7,20 @@ from sklearn.metrics import average_precision_score
 def compare_models(
     candidate_path: str, baseline_path: str, test_data_path: str, output_path: str
 ):
+    """Compare candidate model AUPRC against baseline on a holdout set.
+
+    Promotes the candidate if its AUPRC is within 0.01 of the baseline.
+    Results are written to output_path as JSON for CI pipeline consumption.
+
+    Args:
+        candidate_path: Path to candidate model .pkl file.
+        baseline_path: Path to current production model .pkl file.
+        test_data_path: Path to holdout test data (.csv or .parquet).
+        output_path: Path to write JSON comparison report.
+
+    Returns:
+        dict with candidate_auprc, baseline_auprc, delta, and promote flag.
+    """
     candidate = joblib.load(candidate_path)
     baseline = joblib.load(baseline_path)
 

@@ -10,6 +10,15 @@ from imblearn.over_sampling import SMOTE
 
 
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Engineer temporal, amount, and velocity features from raw transaction data.
+
+    Args:
+        df: Raw transaction DataFrame with columns: timestamp, amount,
+            merchant_cat, country, and optionally pre-joined velocity columns.
+
+    Returns:
+        DataFrame with engineered feature columns appended.
+    """
     df = df.copy()
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
@@ -62,6 +71,18 @@ FEATURE_COLS = [
 
 
 def train_xgboost(df: pd.DataFrame):
+    """Train an XGBoost classifier with SMOTE oversampling and 5-fold stratified CV.
+
+    Handles class imbalance via scale_pos_weight and SMOTE on training folds.
+    Optimizes for AUPRC (Area Under Precision-Recall Curve), the correct metric
+    for severely imbalanced fraud detection.
+
+    Args:
+        df: Transaction DataFrame with 'is_fraud' label column.
+
+    Returns:
+        Trained XGBClassifier from the last fold.
+    """
     df = engineer_features(df)
     X = df[FEATURE_COLS].fillna(0)
     y = df["is_fraud"]

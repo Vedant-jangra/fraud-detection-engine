@@ -1,15 +1,37 @@
 {
+  "uid": "fraud-data-drift",
   "title": "Data Drift Monitor",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "panels": [
     {
+      "id": 1,
       "title": "PSI per Feature",
       "type": "timeseries",
       "gridPos": { "h": 10, "w": 16, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "feature_psi", "legendFormat": "{{ feature_name }}" }
+        {
+          "expr": "feature_psi",
+          "legendFormat": "{{ feature_name }}",
+          "refId": "A"
+        }
       ],
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": true,
+            "thresholdsStyle": { "mode": "dashed" }
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -17,25 +39,109 @@
               { "color": "yellow", "value": 0.1 },
               { "color": "red", "value": 0.2 }
             ]
-          }
+          },
+          "unit": "short",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Max PSI (Current)",
+      "type": "gauge",
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "max(feature_psi)",
+          "legendFormat": "Max PSI",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.2 }
+            ]
+          },
+          "min": 0,
+          "max": 0.5,
+          "unit": "short",
+          "decimals": 3
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
         }
       }
     },
     {
-      "title": "PSI Threshold Markers",
-      "type": "stat",
-      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 0 },
-      "targets": [
-        { "expr": "max(feature_psi)" }
-      ]
-    },
-    {
+      "id": 3,
       "title": "Rolling 1h Model Precision",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "model_precision_rolling_1h" }
-      ]
+        {
+          "expr": "model_precision_rolling_1h",
+          "legendFormat": "Precision",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "semi-dark-blue" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "spanNulls": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.7 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 4,
+      "title": "PSI Threshold Reference",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [],
+      "options": {
+        "textMode": "name",
+        "text": {
+          "titleSize": 14
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "PSI < 0.1 = Stable | PSI 0.1–0.2 = Investigate | PSI > 0.2 = Retrain Model"
+        }
+      }
     }
   ]
 }

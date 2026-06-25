@@ -283,6 +283,22 @@ Prometheus alert rules fire automatically when PSI exceeds 0.2, P99 latency exce
 *(Placeholder: Insert screenshot of the Locust web UI showing sub-20ms P99 latency at 10k TPS here)*
 `![Locust Benchmark](docs/assets/locust_benchmark.png)`
 
+## Business Impact
+
+At our operating threshold of 0.15, the model achieves **81% recall** and **72% precision** on the IEEE-CIS dataset. On a hypothetical production volume of 50,000 daily transactions at 3.5% fraud rate:
+
+| Metric | Value |
+|--------|-------|
+| Daily frauds in system | 1,750 |
+| Fraud caught (recall=0.81) | 1,418 |
+| False positives (legit declines) | 551 |
+| **Fraud prevented (INR/day)** | **₹1,20,53,000** |
+| FP friction cost (INR/day) | ₹13,224 |
+| **Net daily benefit (INR)** | **₹1,20,39,776** |
+| **Annualised benefit (INR)** | **₹43,94,51,624 (~₹44 crore/year)** |
+
+The threshold was chosen to maximize net benefit at the business's stated cost ratio of 10:1 between fraud loss and customer friction. See [`notebooks/business_impact.ipynb`](notebooks/business_impact.ipynb) for the full calculation.
+
 ## Running Tests
 
 ```bash
